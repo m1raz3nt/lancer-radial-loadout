@@ -21,7 +21,9 @@ jobs:
           set -euo pipefail
           VERSION="${TAG#v}"
           URL="https://github.com/${REPO}"
-          MANIFEST="https://github.com/${REPO}/releases/latest/download/module.json"
+          # Проверка обновлений идёт по манифесту на main, а не по releases/latest:
+          # все релизы помечены pre-release, а GitHub исключает такие из latest.
+          MANIFEST="https://raw.githubusercontent.com/${REPO}/refs/heads/main/module.json"
           DOWNLOAD="https://github.com/${REPO}/releases/download/${TAG}/module.zip"
           tmp="$(mktemp)"
           jq --arg v "$VERSION" --arg u "$URL" --arg m "$MANIFEST" --arg d "$DOWNLOAD" \
