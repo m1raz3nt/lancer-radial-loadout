@@ -8,7 +8,9 @@
  * «Безопасная зона» — прозрачное кольцо вокруг токена по внешнему краю кружков:
  * пока курсор в нём (или на кружке), слоты не исчезают. Плюс запас 180 мс.
  *
- * Хранение: actor.flags["lancer-radial-loadout"].slots = (string|null)[]  (uuid предметов)
+ * Хранение: actor.flags["lancer-radial-loadout"].slots — массив длины SLOT_COUNT из
+ * { uuid, color } либо null. Старый формат (голая строка uuid) читается как
+ * цвет "default", так что уже расставленные слоты не слетают.
  */
 
 const MODULE = "lancer-radial-loadout";
@@ -19,6 +21,21 @@ const HIDE_DELAY = 180;  // запас перед скрытием, мс
 
 const ALLOWED_ACTOR_TYPES = ["mech", "npc", "pilot"];
 const ASSIGNABLE_TYPES = ["mech_weapon", "mech_system", "npc_feature", "pilot_weapon", "pilot_gear"];
+
+/** Палитра слотов. Ключ уходит во флаги, hex — в CSS-переменную --slot-color. */
+const SLOT_COLORS = {
+  default: { label: "Стандартный", hex: "#8ab4ff" },
+  red:     { label: "Красный",     hex: "#ff6b6b" },
+  green:   { label: "Зелёный",     hex: "#5ad18a" },
+  blue:    { label: "Синий",       hex: "#4a86ff" },
+  pink:    { label: "Розовый",     hex: "#ff7ac8" },
+  gray:    { label: "Серый",       hex: "#9aa3b2" }
+};
+const DEFAULT_COLOR = "default";
+
+function colorHex(key) {
+  return (SLOT_COLORS[key] ?? SLOT_COLORS[DEFAULT_COLOR]).hex;
+}
 
 /* -------------------------------------------- */
 /*  Настройки                                   */
@@ -219,15 +236,16 @@ function renderSlots(token) {
   // Показывать радиаль можем и через пилота, а писать — только настоящему владельцу.
   const canEdit = actor.isOwner;
 
-  slots.forEach((uuid, i) => {
+  slots.forEach((entry, i) => {
     const angle = (360 / SLOT_COUNT) * i - 90;
-    const item = uuid ? fromUuidSync(uuid) : null;
+    const item = entry?.uuid ? fromUuidSync(entry.uuid) : null;
     const uses = item && showUses ? getUses(item) : null;
 
     const btn = document.createElement("div");
     btn.className = `lrl-slot ${item ? "filled" : "empty"}`;
     btn.style.setProperty("--angle", `${angle}deg`);
     btn.style.setProperty("--i", i);
+    if (item) btn.style.setProperty("--slot-color", colorHex(entry.color));
 
     if (item) {
       btn.style.backgroundImage = `url("${encodeURI(item.img ?? "")}")`;
@@ -381,13 +399,21 @@ async function openAssignDialog(actor, slotIndex) {
     .filter(i => ASSIGNABLE_TYPES.includes(i.type))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const current = readSlots(actor)[slotIndex] ?? "";
+  const current = readSlots(actor)[slotIndex];
+  const currentUuid = current?.uuid ?? "";
+  const currentColor = current?.color ?? DEFAULT_COLOR;
 
   const opts = items.map(i => {
     const u = getUses(i);
-    const sel = i.uuid === current ? " selected" : "";
+    const sel = i.uuid === currentUuid ? " selected" : "";
     return `<option value="${i.uuid}"${sel}>${foundry.utils.escapeHTML(i.name)} — ${i.type}${u ? ` [${u.value}/${u.max}]` : ""}</option>`;
   }).join("");
+
+  const swatches = Object.entries(SLOT_COLORS).map(([key, { label, hex }]) => `
+    <label class="lrl-swatch" style="--c:${hex}" title="${label}">
+      <input type="radio" name="color" value="${key}"${key === currentColor ? " checked" : ""}>
+      <span></span>
+    </label>`).join("");
 
   const title = `${actor.name}: слот #${slotIndex + 1}`;
   // Без обёртки <form>: DialogV2 сам заворачивает content в форму,
@@ -396,15 +422,20 @@ async function openAssignDialog(actor, slotIndex) {
     <div class="form-group">
       <label>Предмет</label>
       <select name="uuid" style="width:100%">
-        <option value=""${current ? "" : " selected"}>— пусто —</option>${opts}
+        <option value=""${currentUuid ? "" : " selected"}>— пусто —</option>${opts}
       </select>
+    </div>
+    <div class="form-group">
+      <label>Цвет слота</label>
+      <div class="lrl-swatches">${swatches}</div>
     </div>`;
 
-  // null — диалог закрыли, "" — выбрали «пусто», иначе uuid предмета.
+  // null — диалог закрыли, uuid === "" — выбрали «пусто».
   const choice = await promptForItem(title, content);
   if (choice === null) return;
 
-  const saved = await writeSlot(actor, slotIndex, choice || null);
+  const entry = choice.uuid ? { uuid: choice.uuid, color: choice.color } : null;
+  const saved = await writeSlot(actor, slotIndex, entry);
   if (saved && currentToken?.actor?.id === actor.id) renderSlots(currentToken);
 }
 
@@ -423,7 +454,11 @@ async function promptForItem(title, content) {
       ok: {
         label: "Сохранить",
         icon: "fas fa-check",
-        callback: (_event, button) => button.form?.elements?.uuid?.value ?? ""
+        // elements.color — RadioNodeList, её .value отдаёт отмеченный вариант.
+        callback: (_event, button) => ({
+          uuid: button.form?.elements?.uuid?.value ?? "",
+          color: button.form?.elements?.color?.value || DEFAULT_COLOR
+        })
       },
       rejectClose: false
     });
@@ -438,7 +473,13 @@ async function promptForItem(title, content) {
       buttons: {
         ok: {
           icon: '<i class="fas fa-check"></i>', label: "Сохранить",
-          callback: html => { picked = true; resolve(html.find("[name=uuid]").val() ?? ""); }
+          callback: html => {
+            picked = true;
+            resolve({
+              uuid: html.find("[name=uuid]").val() ?? "",
+              color: html.find("[name=color]:checked").val() || DEFAULT_COLOR
+            });
+          }
         },
         cancel: { icon: '<i class="fas fa-times"></i>', label: "Отмена" }
       },
@@ -451,16 +492,29 @@ async function promptForItem(title, content) {
 /*  flag'и / утилиты                            */
 /* -------------------------------------------- */
 
+/** Приводит запись слота к { uuid, color }; строка — старый формат без цвета. */
+function normSlot(entry) {
+  if (!entry) return null;
+  if (typeof entry === "string") return { uuid: entry, color: DEFAULT_COLOR };
+  if (typeof entry === "object" && entry.uuid) {
+    return {
+      uuid: entry.uuid,
+      color: entry.color in SLOT_COLORS ? entry.color : DEFAULT_COLOR
+    };
+  }
+  return null;
+}
+
 function readSlots(actor) {
   const raw = actor.getFlag(MODULE, "slots");
-  const arr = Array.isArray(raw) ? raw.slice(0, SLOT_COUNT) : [];
+  const arr = (Array.isArray(raw) ? raw.slice(0, SLOT_COUNT) : []).map(normSlot);
   while (arr.length < SLOT_COUNT) arr.push(null);
   return arr;
 }
 
-async function writeSlot(actor, index, uuid) {
+async function writeSlot(actor, index, entry) {
   const slots = readSlots(actor);
-  slots[index] = uuid;
+  slots[index] = normSlot(entry);
   try {
     await actor.setFlag(MODULE, "slots", slots);
     return true;
