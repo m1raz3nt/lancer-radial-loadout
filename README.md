@@ -56,4 +56,4 @@ https://raw.githubusercontent.com/m1raz3nt/lancer-radial-loadout/refs/heads/main
 
 ## Совместимость
 
-Foundry **v12–v13**, система `lancer`. Диалог назначения работает через `DialogV2`, со старым `Dialog` в качестве запасного пути для ранних сборок v12.
+Foundry **v12–v13**, система `lancer`.
