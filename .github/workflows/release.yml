@@ -13,6 +13,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Foundry сверяет обновления с манифестом на main, а CI берёт версию из
+      # тега. Если они разъезжаются, у пользователей появляется вечно доступное
+      # обновление, которое ставит ту же версию. Ловим это до сборки.
+      - name: Тег должен совпадать с version в module.json
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          COMMITTED="$(jq -r '.version' module.json)"
+          if [ "$COMMITTED" != "$VERSION" ]; then
+            echo "::error::Тег $TAG даёт версию $VERSION, а в module.json записана $COMMITTED."
+            exit 1
+          fi
+
       - name: Inject version and URLs into module.json
         env:
           TAG: ${{ github.event.release.tag_name }}
@@ -22,7 +37,7 @@ jobs:
           VERSION="${TAG#v}"
           URL="https://github.com/${REPO}"
           # Проверка обновлений идёт по манифесту на main, а не по releases/latest:
-          # все релизы помечены pre-release, а GitHub исключает такие из latest.
+          # часть релизов помечена pre-release, а GitHub исключает такие из latest.
           MANIFEST="https://raw.githubusercontent.com/${REPO}/refs/heads/main/module.json"
           DOWNLOAD="https://github.com/${REPO}/releases/download/${TAG}/module.zip"
           tmp="$(mktemp)"
