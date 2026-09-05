@@ -87,15 +87,18 @@ function shouldShow(token) {
 let hideTimer = null;
 let currentToken = null;
 
+// Геометрия безопасной зоны. sceneOuter/sceneTokenW — в координатах сцены,
+// geomCache — то же в экранных px (зависит от зума, сбрасывается при панораме).
+let sceneTokenW = 0;
+let sceneOuter = 0;
+let geomCache = null;
+
 function ensureOverlay() {
   let el = document.getElementById("lrl-hud");
   if (!el) {
     el = document.createElement("div");
     el.id = "lrl-hud";
     el.innerHTML = `<div class="lrl-safezone"></div><div class="lrl-ring"></div>`;
-    const sz = el.querySelector(".lrl-safezone");
-    sz.addEventListener("pointerenter", cancelHide);
-    sz.addEventListener("pointerleave", scheduleHide);
   }
   const parent =
     document.getElementById("hud") ??
@@ -109,14 +112,49 @@ function ensureOverlay() {
 function cancelHide() {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
 }
+/** Не перезапускает уже идущий таймер: иначе непрерывное движение мыши
+ *  вне зоны бесконечно откладывало бы скрытие. */
 function scheduleHide() {
-  cancelHide();
+  if (hideTimer) return;
   hideTimer = setTimeout(hideOverlay, HIDE_DELAY);
 }
 function hideOverlay() {
   cancelHide();
   document.getElementById("lrl-hud")?.classList.remove("active");
   currentToken = null;
+  geomCache = null;
+}
+
+/** Центр и внешний радиус безопасной зоны в экранных px. */
+function getGeom() {
+  if (geomCache) return geomCache;
+  const el = document.getElementById("lrl-hud");
+  if (!el || !currentToken || !sceneTokenW) return null;
+  const rect = el.getBoundingClientRect();
+  if (!rect.width) return null;
+  const scale = rect.width / sceneTokenW;
+  geomCache = {
+    cx: rect.left + rect.width / 2,
+    cy: rect.top + rect.height / 2,
+    outer: sceneOuter * scale
+  };
+  return geomCache;
+}
+
+/**
+ * Безопасная зона отслеживается по координатам курсора, а не через
+ * pointerenter/leave на элементах. Так она, во-первых, не перехватывает клики
+ * по канвасу, во-вторых, переживает перерисовку слотов: при replaceChildren()
+ * элемент под курсором исчезал, слал pointerleave и гасил всю радиаль.
+ */
+function onPointerMove(ev) {
+  if (!currentToken) return;
+  const g = getGeom();
+  if (!g) return;
+  const dx = ev.clientX - g.cx;
+  const dy = ev.clientY - g.cy;
+  if (dx * dx + dy * dy <= g.outer * g.outer) cancelHide();
+  else scheduleHide();
 }
 
 function showFor(token) {
@@ -143,9 +181,20 @@ function positionOverlay(token) {
   el.style.width = `${w}px`;
   el.style.height = `${h}px`;
 
-  // Кольцо-«ловушка»: donut через clip-path, дырка = габарит токена + 4px.
-  const inner = Math.round(Math.max(w, h) / 2 + 4);
-  const outer = RADIUS + SAFE_PAD;
+  // Радиус зависит от габарита токена: при фиксированных 96px на мехе размера 2
+  // кружки ложились поверх модельки, а на размере 3+ «дырка» donut'а становилась
+  // больше внешнего круга и безопасная зона схлопывалась.
+  const half = Math.max(w, h) / 2;
+  const radius = Math.max(RADIUS, Math.round(half + 40));
+  const inner = Math.round(half + 4);
+  const outer = radius + SAFE_PAD;
+
+  sceneTokenW = w;
+  sceneOuter = outer;
+  geomCache = null;
+
+  el.querySelector(".lrl-ring")?.style.setProperty("--radius", `${radius}px`);
+
   const c = outer;
   const sz = el.querySelector(".lrl-safezone");
   if (sz) {
@@ -167,6 +216,8 @@ function renderSlots(token) {
 
   const slots = readSlots(actor);
   const showUses = game.settings.get(MODULE, "showUses");
+  // Показывать радиаль можем и через пилота, а писать — только настоящему владельцу.
+  const canEdit = actor.isOwner;
 
   slots.forEach((uuid, i) => {
     const angle = (360 / SLOT_COUNT) * i - 90;
@@ -176,13 +227,10 @@ function renderSlots(token) {
     const btn = document.createElement("div");
     btn.className = `lrl-slot ${item ? "filled" : "empty"}`;
     btn.style.setProperty("--angle", `${angle}deg`);
-    btn.style.setProperty("--radius", `${RADIUS}px`);
     btn.style.setProperty("--i", i);
-    btn.addEventListener("pointerenter", cancelHide);
-    btn.addEventListener("pointerleave", scheduleHide);
 
     if (item) {
-      btn.style.backgroundImage = `url("${item.img}")`;
+      btn.style.backgroundImage = `url("${encodeURI(item.img ?? "")}")`;
       btn.title =
         `${item.name}${uses ? `  [${uses.value}/${uses.max}]` : ""}\n` +
         `ЛКМ — активировать, ПКМ — сменить` +
@@ -203,13 +251,14 @@ function renderSlots(token) {
     btn.addEventListener("click", ev => {
       ev.preventDefault();
       ev.stopPropagation();
-      if (!item) return openAssignDialog(actor, i);
-      if (ev.shiftKey && uses) return adjustUses(item, -1);
+      if (!item) return canEdit ? openAssignDialog(actor, i) : warnNoPermission(actor);
+      if (ev.shiftKey && uses) return canEdit ? adjustUses(item, -1) : warnNoPermission(actor);
       activateItem(actor, item);
     });
     btn.addEventListener("contextmenu", ev => {
       ev.preventDefault();
       ev.stopPropagation();
+      if (!canEdit) return warnNoPermission(actor);
       if (item && ev.shiftKey && uses) return adjustUses(item, +1);
       openAssignDialog(actor, i);
     });
@@ -236,7 +285,10 @@ Hooks.on("updateToken", (doc, change) => {
 Hooks.on("deleteToken", doc => {
   if (currentToken && doc.id === currentToken.id) hideOverlay();
 });
-Hooks.on("canvasPan", () => { if (currentToken) positionOverlay(currentToken); });
+// Позицию при панораме пересчитывать не нужно: #hud трансформируется вместе со
+// сценой, а координаты выставлены в сценных единицах. Сбрасываем только кэш
+// экранной геометрии — он завязан на зум.
+Hooks.on("canvasPan", () => { geomCache = null; });
 Hooks.on("canvasReady", () => { hideOverlay(); ensureOverlay(); });
 
 Hooks.on("updateItem", item => {
@@ -305,7 +357,19 @@ async function adjustUses(item, delta) {
   const cur = getUses(item);
   if (!cur) return;
   const next = Math.min(cur.max, Math.max(0, cur.value + delta));
-  if (next !== cur.value) await item.update({ "system.uses.value": next });
+  if (next === cur.value) return;
+  try {
+    await item.update({ "system.uses.value": next });
+  } catch (err) {
+    console.error(`${MODULE} | adjustUses`, err, item);
+    ui.notifications.error(`Не удалось изменить счётчик «${item.name}» — скорее всего не хватает прав.`);
+  }
+}
+
+function warnNoPermission(actor) {
+  ui.notifications.warn(
+    `Нет прав на изменение «${actor.name}». Нужен Owner на самом актёре, а не только на пилоте.`
+  );
 }
 
 /* -------------------------------------------- */
@@ -362,7 +426,14 @@ function readSlots(actor) {
 async function writeSlot(actor, index, uuid) {
   const slots = readSlots(actor);
   slots[index] = uuid;
-  await actor.setFlag(MODULE, "slots", slots);
+  try {
+    await actor.setFlag(MODULE, "slots", slots);
+    return true;
+  } catch (err) {
+    console.error(`${MODULE} | writeSlot`, err, actor);
+    ui.notifications.error(`Не удалось сохранить слот на «${actor.name}» — скорее всего не хватает прав.`);
+    return false;
+  }
 }
 
 function isDestroyed(item) {
@@ -374,5 +445,6 @@ function isDestroyed(item) {
 
 Hooks.once("ready", () => {
   ensureOverlay();
+  document.addEventListener("pointermove", onPointerMove, { passive: true });
   console.log(`${MODULE} | готов. game.lancer =`, game.lancer);
 });

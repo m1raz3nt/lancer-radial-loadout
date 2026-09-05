@@ -8,13 +8,14 @@
   display: none;
 }
 
-/* Кольцо-«ловушка»: пока курсор в нём — кружки не пропадают.
-   Форма donut задаётся из JS через clip-path. */
+/* Кольцо-«ловушка» — только визуальная подсказка. Попадание курсора считается
+   в JS по координатам, поэтому элемент не перехватывает клики: иначе он глушил
+   бы выбор соседних токенов в радиусе всего кольца. */
 .lrl-safezone {
   position: absolute;
   left: 50%;
   top: 50%;
-  pointer-events: all;
+  pointer-events: none;
   background: transparent;
 }
 #lrl-hud.lrl-show-zone .lrl-safezone {
@@ -45,7 +46,7 @@
   background-position: center;
   background-repeat: no-repeat;
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
-  transform: rotate(var(--angle)) translate(var(--radius)) rotate(calc(-1 * var(--angle)));
+  transform: rotate(var(--angle)) translate(var(--radius, 96px)) rotate(calc(-1 * var(--angle)));
   transform-origin: center;
   pointer-events: all;
   cursor: pointer;
@@ -62,7 +63,7 @@
 @keyframes lrl-pop {
   from {
     opacity: 0;
-    transform: rotate(var(--angle)) translate(calc(var(--radius) * 0.6)) rotate(calc(-1 * var(--angle)));
+    transform: rotate(var(--angle)) translate(calc(var(--radius, 96px) * 0.6)) rotate(calc(-1 * var(--angle)));
   }
 }
 
