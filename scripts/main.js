@@ -229,13 +229,13 @@ Hooks.on("updateActor", actor => {
 
 async function activateItem(actor, item) {
   try {
-    if (typeof item.beginAttackFlow === "function" &&
+    if (typeof item.beginWeaponAttackFlow === "function" &&
         ["mech_weapon", "pilot_weapon", "npc_feature"].includes(item.type)) {
-      return await item.beginAttackFlow(game.user.targets);
+      return await item.beginWeaponAttackFlow();
     }
+    if (typeof item.beginTechAttackFlow === "function") return await item.beginTechAttackFlow();
     if (typeof item.beginActivationFlow === "function") return await item.beginActivationFlow();
     if (typeof item.beginSystemFlow === "function") return await item.beginSystemFlow();
-    if (typeof item.beginItemChatFlow === "function") return await item.beginItemChatFlow();
     ui.notifications.warn(`Не знаю, как активировать «${item.name}». Проверь game.lancer API.`);
   } catch (err) {
     console.error(`${MODULE} | ошибка активации`, err);
