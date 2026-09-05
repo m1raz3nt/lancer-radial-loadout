@@ -18,7 +18,7 @@
 В Foundry: **Add-on Modules → Install Module** → вставить manifest URL:
 
 ```
-https://github.com/m1raz3nt/lancer-radial-loadout/releases/latest/download/module.json
+https://raw.githubusercontent.com/m1raz3nt/lancer-radial-loadout/refs/heads/main/module.json
 ```
 
 ## Сборка релиза
