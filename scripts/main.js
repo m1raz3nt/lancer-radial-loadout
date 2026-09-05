@@ -381,35 +381,70 @@ async function openAssignDialog(actor, slotIndex) {
     .filter(i => ASSIGNABLE_TYPES.includes(i.type))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const opts = items.map(i => {
-    const u = getUses(i);
-    return `<option value="${i.uuid}">${foundry.utils.escapeHTML(i.name)} — ${i.type}${u ? ` [${u.value}/${u.max}]` : ""}</option>`;
-  }).join("");
-
   const current = readSlots(actor)[slotIndex] ?? "";
 
-  new Dialog({
-    title: `${actor.name}: слот #${slotIndex + 1}`,
-    content: `
-      <form><div class="form-group">
-        <label>Предмет</label>
-        <select name="uuid" style="width:100%">
-          <option value="">— пусто —</option>${opts}
-        </select>
-      </div></form>`,
-    default: "ok",
-    buttons: {
+  const opts = items.map(i => {
+    const u = getUses(i);
+    const sel = i.uuid === current ? " selected" : "";
+    return `<option value="${i.uuid}"${sel}>${foundry.utils.escapeHTML(i.name)} — ${i.type}${u ? ` [${u.value}/${u.max}]` : ""}</option>`;
+  }).join("");
+
+  const title = `${actor.name}: слот #${slotIndex + 1}`;
+  // Без обёртки <form>: DialogV2 сам заворачивает content в форму,
+  // вложенная была бы невалидна. Legacy-ветка добавляет её сама.
+  const content = `
+    <div class="form-group">
+      <label>Предмет</label>
+      <select name="uuid" style="width:100%">
+        <option value=""${current ? "" : " selected"}>— пусто —</option>${opts}
+      </select>
+    </div>`;
+
+  // null — диалог закрыли, "" — выбрали «пусто», иначе uuid предмета.
+  const choice = await promptForItem(title, content);
+  if (choice === null) return;
+
+  const saved = await writeSlot(actor, slotIndex, choice || null);
+  if (saved && currentToken?.actor?.id === actor.id) renderSlots(currentToken);
+}
+
+/**
+ * ApplicationV1 (`Dialog`) помечен deprecated в v13 и отдаёт в колбэки jQuery,
+ * от которой Foundry уходит. Основной путь — DialogV2; старый оставлен запасным
+ * для ранних сборок v12, где ApplicationV2 могло ещё не быть.
+ */
+async function promptForItem(title, content) {
+  const DialogV2 = foundry.applications?.api?.DialogV2;
+
+  if (DialogV2) {
+    return await DialogV2.prompt({
+      window: { title },
+      content,
       ok: {
-        icon: '<i class="fas fa-check"></i>', label: "Сохранить",
-        callback: async html => {
-          await writeSlot(actor, slotIndex, html.find("[name=uuid]").val() || null);
-          if (currentToken?.actor?.id === actor.id) renderSlots(currentToken);
-        }
+        label: "Сохранить",
+        icon: "fas fa-check",
+        callback: (_event, button) => button.form?.elements?.uuid?.value ?? ""
       },
-      cancel: { icon: '<i class="fas fa-times"></i>', label: "Отмена" }
-    },
-    render: html => html.find("[name=uuid]").val(current)
-  }).render(true);
+      rejectClose: false
+    });
+  }
+
+  return await new Promise(resolve => {
+    let picked = false;
+    new Dialog({
+      title,
+      content: `<form>${content}</form>`,
+      default: "ok",
+      buttons: {
+        ok: {
+          icon: '<i class="fas fa-check"></i>', label: "Сохранить",
+          callback: html => { picked = true; resolve(html.find("[name=uuid]").val() ?? ""); }
+        },
+        cancel: { icon: '<i class="fas fa-times"></i>', label: "Отмена" }
+      },
+      close: () => { if (!picked) resolve(null); }
+    }).render(true);
+  });
 }
 
 /* -------------------------------------------- */
