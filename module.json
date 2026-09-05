@@ -1,0 +1,23 @@
+{
+  "id": "lancer-radial-loadout",
+  "title": "Lancer Radial Loadout",
+  "description": "Интерактивные радиальные слоты вокруг токена меха: назначай оружие и системы и активируй их одним кликом.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "12",
+    "verified": "13"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "lancer",
+        "type": "system"
+      }
+    ]
+  },
+  "esmodules": ["scripts/main.js"],
+  "styles": ["styles/radial.css"],
+  "authors": [
+    { "name": "Edurd" }
+  ]
+}

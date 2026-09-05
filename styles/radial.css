@@ -1,0 +1,110 @@
+/* Оверлей живёт в слое #hud — масштабируется и едет вместе с картой */
+#lrl-hud {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+#lrl-hud:not(.active) {
+  display: none;
+}
+
+/* Кольцо-«ловушка»: пока курсор в нём — кружки не пропадают.
+   Форма donut задаётся из JS через clip-path. */
+.lrl-safezone {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: all;
+  background: transparent;
+}
+#lrl-hud.lrl-show-zone .lrl-safezone {
+  background: rgba(138, 180, 255, 0.06);
+  outline: 1px dashed rgba(138, 180, 255, 0.25);
+}
+
+/* Точка отсчёта для кружков — центр токена */
+.lrl-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Один кружок-слот: повернуть -> отъехать на радиус -> вернуть поворот */
+.lrl-slot {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin: -22px;
+  border-radius: 50%;
+  border: 2px solid #8ab4ff;
+  background-color: rgba(10, 12, 20, 0.75);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+  transform: rotate(var(--angle)) translate(var(--radius)) rotate(calc(-1 * var(--angle)));
+  transform-origin: center;
+  pointer-events: all;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: #cdd7ff;
+  transition: border-color 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
+  animation: lrl-pop 0.12s ease both;
+  animation-delay: calc(var(--i, 0) * 0.015s);
+}
+
+@keyframes lrl-pop {
+  from {
+    opacity: 0;
+    transform: rotate(var(--angle)) translate(calc(var(--radius) * 0.6)) rotate(calc(-1 * var(--angle)));
+  }
+}
+
+.lrl-slot.empty {
+  opacity: 0.4;
+  border-style: dashed;
+}
+.lrl-slot.filled {
+  color: transparent; /* прячем "+" под иконкой */
+}
+.lrl-slot:hover {
+  border-color: #fff;
+  box-shadow: 0 0 10px #8ab4ff;
+  opacity: 1;
+}
+.lrl-slot.destroyed {
+  filter: grayscale(1) brightness(0.6);
+  border-color: #d33;
+}
+.lrl-slot.depleted {
+  border-color: #d9534f;
+  filter: grayscale(0.5) brightness(0.75);
+}
+
+/* Бейдж «текущее/максимум» использований */
+.lrl-badge {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  min-width: 16px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: #1a1d27;
+  border: 1px solid #8ab4ff;
+  color: #e8ecff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  pointer-events: none;
+}
+.lrl-slot.depleted .lrl-badge {
+  border-color: #d9534f;
+  color: #ffd7d5;
+}
