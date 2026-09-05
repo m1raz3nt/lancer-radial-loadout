@@ -258,8 +258,7 @@ function getUses(item) {
 async function adjustUses(item, delta) {
   const cur = getUses(item);
   if (!cur) return;
-  const clamp = Math.clamp ?? Math.clamped;
-  const next = clamp(cur.value + delta, 0, cur.max);
+  const next = Math.min(cur.max, Math.max(0, cur.value + delta));
   if (next !== cur.value) await item.update({ "system.uses.value": next });
 }
 
