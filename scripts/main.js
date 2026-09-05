@@ -25,10 +25,10 @@ const ASSIGNABLE_TYPES = ["mech_weapon", "mech_system", "npc_feature", "pilot_we
 /* -------------------------------------------- */
 
 Hooks.once("init", () => {
-  game.settings.register(MODULE, "onlyAssigned", {
-    name: "Только у своих токенов",
-    hint: "Игрок видит слоты лишь на токенах, которыми владеет. GM — только на токенах, назначенных игрокам.",
-    scope: "world", config: true, type: Boolean, default: true
+  game.settings.register(MODULE, "gmSeesAll", {
+    name: "GM видит кружки на всех актёрах",
+    hint: "Выкл (по умолчанию): GM видит слоты только на токенах, которыми управляет игрок (напрямую или через пилота). Вкл: на всех мехах/NPC/пилотах.",
+    scope: "world", config: true, type: Boolean, default: false
   });
   game.settings.register(MODULE, "showUses", {
     name: "Показывать счётчик расходов",
@@ -46,15 +46,38 @@ Hooks.once("init", () => {
 /*  Кому показывать                             */
 /* -------------------------------------------- */
 
+/** Связанный пилот для меха (в Lancer это отдельный актёр с раздельным Ownership). */
+function getPilot(actor) {
+  if (actor?.type !== "mech") return null;
+  const ref = actor.system?.pilot;
+  const cand = ref?.value ?? ref?.uuid ?? ref?.id ?? ref ?? null;
+  if (cand instanceof Actor) return cand;
+  if (typeof cand === "string") {
+    try {
+      return fromUuidSync(/[.\/]/.test(cand) ? cand : `Actor.${cand}`) ?? null;
+    } catch { return null; }
+  }
+  return null;
+}
+
+/** Владеет ли конкретный игрок актёром — напрямую или через связанного пилота. */
+function playerControls(user, actor) {
+  if (actor.testUserPermission(user, "OWNER")) return true;
+  const pilot = getPilot(actor);
+  return Boolean(pilot && pilot.testUserPermission(user, "OWNER"));
+}
+
 function shouldShow(token) {
   const actor = token?.actor;
   if (!actor || !ALLOWED_ACTOR_TYPES.includes(actor.type)) return false;
-  if (!actor.isOwner) return false;
-  if (game.settings.get(MODULE, "onlyAssigned") && game.user.isGM) {
-    const ownedByPlayer = game.users.some(u => !u.isGM && actor.testUserPermission(u, "OWNER"));
-    if (!ownedByPlayer) return false;
+
+  if (game.user.isGM) {
+    if (game.settings.get(MODULE, "gmSeesAll")) return true;
+    return game.users.some(u => !u.isGM && playerControls(u, actor));
   }
-  return true;
+
+  // Игрок: свой токен — напрямую или через пилота связанного меха.
+  return playerControls(game.user, actor);
 }
 
 /* -------------------------------------------- */
@@ -227,19 +250,42 @@ Hooks.on("updateActor", actor => {
 /*  Активация предмета через Lancer Flow API    */
 /* -------------------------------------------- */
 
-async function activateItem(actor, item) {
+/**
+ * Активация предмета через Lancer Flow API. Оставлены только проверенные вызовы:
+ *   mech_weapon / pilot_weapon           -> item.beginWeaponAttackFlow()
+ *   система с system.actions[]            -> item.beginActivationFlow("system.actions.0")
+ *   mech_system / weapon_mod / npc_feature-> item.beginSystemFlow()
+ *
+ * @param {LancerActor} actor
+ * @param {LancerItem}  item
+ * @param {string|null} actionPath  напр. "system.actions.1" — привязка слота к конкретному действию
+ */
+async function activateItem(actor, item, actionPath = null) {
   try {
-    if (typeof item.beginAttackFlow === "function" &&
-        ["mech_weapon", "pilot_weapon", "npc_feature"].includes(item.type)) {
-      return await item.beginAttackFlow(game.user.targets);
+    const t = item.type;
+
+    // Слот привязан к конкретному действию
+    if (actionPath) return await item.beginActivationFlow(actionPath);
+
+    // Оружие -> бросок атаки
+    if (t === "mech_weapon" || t === "pilot_weapon") {
+      return await item.beginWeaponAttackFlow();
     }
-    if (typeof item.beginActivationFlow === "function") return await item.beginActivationFlow();
-    if (typeof item.beginSystemFlow === "function") return await item.beginSystemFlow();
-    if (typeof item.beginItemChatFlow === "function") return await item.beginItemChatFlow();
-    ui.notifications.warn(`Не знаю, как активировать «${item.name}». Проверь game.lancer API.`);
+
+    // Система с действиями -> активация первого (нагрев, Limited, экономика действий)
+    if (Array.isArray(item.system?.actions) && item.system.actions.length) {
+      return await item.beginActivationFlow("system.actions.0");
+    }
+
+    // Система / мод / NPC-фича без действий -> карточка системы
+    if (t === "mech_system" || t === "weapon_mod" || t === "npc_feature") {
+      return await item.beginSystemFlow();
+    }
+
+    ui.notifications.warn(`«${item.name}» (${t}): не знаю, как активировать.`);
   } catch (err) {
-    console.error(`${MODULE} | ошибка активации`, err);
-    ui.notifications.error(`Ошибка активации «${item.name}» — см. консоль.`);
+    console.error(`${MODULE} | activateItem`, err, item);
+    ui.notifications.error(`Ошибка активации «${item.name}» — см. консоль (F12).`);
   }
 }
 
@@ -258,8 +304,7 @@ function getUses(item) {
 async function adjustUses(item, delta) {
   const cur = getUses(item);
   if (!cur) return;
-  const clamp = Math.clamp ?? Math.clamped;
-  const next = clamp(cur.value + delta, 0, cur.max);
+  const next = Math.min(cur.max, Math.max(0, cur.value + delta));
   if (next !== cur.value) await item.update({ "system.uses.value": next });
 }
 

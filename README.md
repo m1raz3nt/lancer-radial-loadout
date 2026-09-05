@@ -1,22 +1,36 @@
 # Lancer Radial Loadout
 
-## GitHub layout
+Модуль для [Foundry VTT](https://foundryvtt.com/) и системы **[LANCER](https://foundryvtt.com/packages/lancer)**.
 
-Upload these files to the repository root:
+При наведении на токен вокруг него появляются радиальные слоты, в которые можно назначить оружие и системы меха и активировать их одним кликом.
 
-- `module.json`
-- `scripts/main.js`
-- `styles/radial.css`
+## Возможности
 
-Create a GitHub Release named/tagged `v1.0.0` and upload:
-`lancer-radial-loadout.zip`
+- Слоты появляются **при наведении** на токен, а не при выборе. Вокруг — «безопасная зона», в которой они не пропадают.
+- **ЛКМ** по слоту — активация: оружие → бросок атаки, система → активация действия или карточка.
+- **ПКМ** по слоту — назначить/сменить предмет.
+- **Shift+ЛКМ / Shift+ПКМ** по предмету с Limited — счётчик использований −1 / +1.
+- Бейдж «текущее/максимум» для расходуемых предметов; подсветка сломанных/исчерпанных.
+- Видимость: игрок видит слоты на своих токенах (в т.ч. на мехе через связанного пилота); GM — только там, где есть игрок-владелец (настройка `gmSeesAll` снимает ограничение).
 
-## Foundry Manifest URL
+## Установка
 
-Use the RAW URL to `module.json`, not the normal GitHub file page:
+В Foundry: **Add-on Modules → Install Module** → вставить manifest URL:
 
-`https://raw.githubusercontent.com/USERNAME/REPOSITORY/main/module.json`
+```
+https://github.com/m1raz3nt/lancer-radial-loadout/releases/latest/download/module.json
+```
 
-Before using it, replace `USERNAME/REPOSITORY` in both the manifest and this URL with the actual repository path.
+## Сборка релиза
 
-The `download` field in `module.json` must point to the ZIP attached to the GitHub Release.
+Тег `vX.Y.Z` + GitHub Release → workflow `.github/workflows/release.yml` подставляет версию и URL в `module.json` и прикладывает `module.json` + `module.zip` к релизу.
+
+## Настройки модуля
+
+*Configure Settings → Module Settings → Lancer Radial Loadout*:
+
+| Настройка | Область | По умолчанию | Что делает |
+|---|---|---|---|
+| `gmSeesAll` — GM видит кружки на всех актёрах | world | выкл | Выкл: GM видит слоты только там, где актёром управляет игрок. Вкл: на всех мехах/NPC/пилотах. |
+| `showUses` — показывать счётчик расходов | world | вкл | Бейдж «текущее/максимум» для предметов с тегом Limited. |
+| `showSafeZone` — подсвечивать безопасную зону | client | выкл | Едва заметное кольцо вокруг токена, в котором кружки не пропадают. |

@@ -1,0 +1,47 @@
+name: Release Module
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inject version and URLs into module.json
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          URL="https://github.com/${REPO}"
+          MANIFEST="https://github.com/${REPO}/releases/latest/download/module.json"
+          DOWNLOAD="https://github.com/${REPO}/releases/download/${TAG}/module.zip"
+          tmp="$(mktemp)"
+          jq --arg v "$VERSION" --arg u "$URL" --arg m "$MANIFEST" --arg d "$DOWNLOAD" \
+            '.version = $v | .url = $u | .manifest = $m | .download = $d' module.json > "$tmp"
+          mv "$tmp" module.json
+          echo "--- module.json ---"
+          cat module.json
+
+      - name: Build module.zip (module.json at archive root)
+        run: |
+          set -euo pipefail
+          files="module.json scripts styles"
+          for extra in lang README.md LICENSE; do
+            if [ -e "$extra" ]; then files="$files $extra"; fi
+          done
+          zip -r module.zip $files
+
+      - name: Attach module.json and module.zip to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            module.json
+            module.zip
