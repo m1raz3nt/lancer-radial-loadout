@@ -229,13 +229,13 @@ Hooks.on("updateActor", actor => {
 
 async function activateItem(actor, item) {
   try {
-    if (typeof item.beginWeaponAttackFlow === "function" &&
+    if (typeof item.beginAttackFlow === "function" &&
         ["mech_weapon", "pilot_weapon", "npc_feature"].includes(item.type)) {
-      return await item.beginWeaponAttackFlow();
+      return await item.beginAttackFlow(game.user.targets);
     }
-    if (typeof item.beginTechAttackFlow === "function") return await item.beginTechAttackFlow();
     if (typeof item.beginActivationFlow === "function") return await item.beginActivationFlow();
     if (typeof item.beginSystemFlow === "function") return await item.beginSystemFlow();
+    if (typeof item.beginItemChatFlow === "function") return await item.beginItemChatFlow();
     ui.notifications.warn(`Не знаю, как активировать «${item.name}». Проверь game.lancer API.`);
   } catch (err) {
     console.error(`${MODULE} | ошибка активации`, err);
@@ -258,7 +258,8 @@ function getUses(item) {
 async function adjustUses(item, delta) {
   const cur = getUses(item);
   if (!cur) return;
-  const next = Math.min(cur.max, Math.max(0, cur.value + delta));
+  const clamp = Math.clamp ?? Math.clamped;
+  const next = clamp(cur.value + delta, 0, cur.max);
   if (next !== cur.value) await item.update({ "system.uses.value": next });
 }
 
