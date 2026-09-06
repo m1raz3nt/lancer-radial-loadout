@@ -71,8 +71,17 @@
   opacity: 0.4;
   border-style: dashed;
 }
-.lrl-slot.filled {
-  color: transparent; /* прячем "+" под иконкой */
+.lrl-slot.item {
+  color: transparent; /* прячем "+" под картинкой предмета */
+}
+
+/* Встроенные действия рисуются глифом: у них нет картинки предмета */
+.lrl-slot.builtin {
+  color: var(--slot-color, #8ab4ff);
+  font-size: 19px;
+}
+.lrl-slot.builtin i {
+  pointer-events: none;
 }
 .lrl-slot:hover {
   border-color: #fff;

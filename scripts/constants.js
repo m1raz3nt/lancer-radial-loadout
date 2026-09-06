@@ -46,3 +46,28 @@ export const SLOT_COLORS = {
 export function colorHex(key) {
   return (SLOT_COLORS[key] ?? SLOT_COLORS[DEFAULT_COLOR]).hex;
 }
+
+/**
+ * LANCER actions that live on the actor rather than on an item. Improvised
+ * Attack is why this exists: the rules give it to every mech, so there is no
+ * item to drop into a slot. `actors` narrows which actor types offer the entry.
+ */
+export const BUILTIN_ACTIONS = {
+  improvisedAttack: { label: "LANCER_RADIAL.Builtin.ImprovisedAttack", icon: "fa-solid fa-hand-back-fist" },
+  basicAttack:      { label: "LANCER_RADIAL.Builtin.BasicAttack",      icon: "fa-solid fa-crosshairs" },
+  techAttack:       { label: "LANCER_RADIAL.Builtin.TechAttack",       icon: "fa-solid fa-satellite-dish", actors: ["mech", "npc"] },
+  damage:           { label: "LANCER_RADIAL.Builtin.Damage",           icon: "fa-solid fa-burst" },
+  overcharge:       { label: "LANCER_RADIAL.Builtin.Overcharge",       icon: "fa-solid fa-bolt",  actors: ["mech"] },
+  stabilize:        { label: "LANCER_RADIAL.Builtin.Stabilize",        icon: "fa-solid fa-kit-medical" },
+  structure:        { label: "LANCER_RADIAL.Builtin.Structure",        icon: "fa-solid fa-heart-crack", actors: ["mech", "npc"] },
+  overheat:         { label: "LANCER_RADIAL.Builtin.Overheat",         icon: "fa-solid fa-temperature-arrow-up", actors: ["mech", "npc"] },
+  burn:             { label: "LANCER_RADIAL.Builtin.Burn",             icon: "fa-solid fa-fire" },
+  scan:             { label: "LANCER_RADIAL.Builtin.Scan",             icon: "fa-solid fa-magnifying-glass" },
+  fullRepair:       { label: "LANCER_RADIAL.Builtin.FullRepair",       icon: "fa-solid fa-screwdriver-wrench" }
+};
+
+/** Built-ins on offer for a given actor type. */
+export function builtinsFor(actorType) {
+  return Object.entries(BUILTIN_ACTIONS)
+    .filter(([, def]) => !def.actors || def.actors.includes(actorType));
+}

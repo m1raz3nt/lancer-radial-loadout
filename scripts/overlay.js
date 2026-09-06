@@ -1,8 +1,8 @@
-import { MODULE_ID, SLOT_COUNT, RADIUS, SAFE_PAD, HIDE_DELAY, colorHex } from "./constants.js";
+import { MODULE_ID, SLOT_COUNT, RADIUS, SAFE_PAD, HIDE_DELAY, colorHex, BUILTIN_ACTIONS } from "./constants.js";
 import { setting } from "./settings.js";
 import { shouldShow } from "./visibility.js";
 import { readSlots, getUses, adjustUses, isDestroyed, warnNoPermission } from "./slots.js";
-import { activateItem } from "./flows.js";
+import { activateItem, runBuiltin } from "./flows.js";
 import { openAssignDialog } from "./assign-dialog.js";
 
 const ELEMENT_ID = "lrl-hud";
@@ -163,11 +163,28 @@ function positionOverlay(token) {
 /*  Slots                                       */
 /* -------------------------------------------- */
 
-function slotTooltip(item, uses) {
-  const head = uses ? `${item.name}  [${uses.value}/${uses.max}]` : item.name;
+function slotTooltip(name, uses) {
+  const head = uses ? `${name}  [${uses.value}/${uses.max}]` : name;
   const lines = [head, game.i18n.localize("LANCER_RADIAL.Tooltip.Actions")];
   if ( uses ) lines.push(game.i18n.localize("LANCER_RADIAL.Tooltip.Uses"));
   return lines.join("\n");
+}
+
+/**
+ * Turn a stored slot into what the circle needs to draw and do: a resolved item,
+ * or one of the actor-level actions. Null means empty — including a uuid that no
+ * longer resolves, so a deleted item quietly frees its slot instead of breaking.
+ */
+function resolveSlot(entry) {
+  if ( !entry ) return null;
+  if ( entry.builtin ) {
+    const def = BUILTIN_ACTIONS[entry.builtin];
+    if ( !def ) return null;
+    return { kind: "builtin", key: entry.builtin, name: game.i18n.localize(def.label), icon: def.icon };
+  }
+  const item = entry.uuid ? fromUuidSync(entry.uuid) : null;
+  if ( !item ) return null;
+  return { kind: "item", item, name: item.name };
 }
 
 function renderSlots(token) {
@@ -184,25 +201,33 @@ function renderSlots(token) {
 
   slots.forEach((entry, i) => {
     const angle = (360 / SLOT_COUNT) * i - 90;
-    const item = entry?.uuid ? fromUuidSync(entry.uuid) : null;
-    const uses = item && showUses ? getUses(item) : null;
+    const target = resolveSlot(entry);
+    const uses = target?.item && showUses ? getUses(target.item) : null;
 
     const btn = document.createElement("div");
-    btn.className = `lrl-slot ${item ? "filled" : "empty"}`;
+    btn.className = `lrl-slot ${target ? target.kind : "empty"}`;
     btn.style.setProperty("--angle", `${angle}deg`);
     btn.style.setProperty("--i", i);
 
-    if ( item ) {
+    if ( target ) {
       btn.style.setProperty("--slot-color", colorHex(entry.color));
-      btn.style.backgroundImage = `url("${encodeURI(item.img ?? "")}")`;
-      btn.title = slotTooltip(item, uses);
-      if ( isDestroyed(item) ) btn.classList.add("destroyed");
-      if ( uses && uses.value <= 0 ) btn.classList.add("depleted");
-      if ( uses ) {
-        const badge = document.createElement("span");
-        badge.className = "lrl-badge";
-        badge.textContent = `${uses.value}/${uses.max}`;
-        btn.appendChild(badge);
+      btn.title = slotTooltip(target.name, uses);
+
+      if ( target.kind === "item" ) {
+        btn.style.backgroundImage = `url("${encodeURI(target.item.img ?? "")}")`;
+        if ( isDestroyed(target.item) ) btn.classList.add("destroyed");
+        if ( uses && uses.value <= 0 ) btn.classList.add("depleted");
+        if ( uses ) {
+          const badge = document.createElement("span");
+          badge.className = "lrl-badge";
+          badge.textContent = `${uses.value}/${uses.max}`;
+          btn.appendChild(badge);
+        }
+      } else {
+        // Built-ins have no artwork, so the circle carries a glyph instead.
+        const icon = document.createElement("i");
+        icon.className = target.icon;
+        btn.appendChild(icon);
       }
     } else {
       btn.title = game.i18n.localize("LANCER_RADIAL.Tooltip.Empty");
@@ -212,23 +237,24 @@ function renderSlots(token) {
     btn.addEventListener("click", async ev => {
       ev.preventDefault();
       ev.stopPropagation();
-      if ( !item ) {
+      if ( !target ) {
         if ( !canEdit ) return warnNoPermission(actor);
         if ( await openAssignDialog(actor, i) ) refresh();
         return;
       }
       if ( ev.shiftKey && uses ) {
         if ( !canEdit ) return warnNoPermission(actor);
-        return adjustUses(item, -1);
+        return adjustUses(target.item, -1);
       }
-      activateItem(actor, item);
+      if ( target.kind === "builtin" ) return runBuiltin(actor, target.key);
+      activateItem(actor, target.item);
     });
 
     btn.addEventListener("contextmenu", async ev => {
       ev.preventDefault();
       ev.stopPropagation();
       if ( !canEdit ) return warnNoPermission(actor);
-      if ( item && ev.shiftKey && uses ) return adjustUses(item, +1);
+      if ( uses && ev.shiftKey ) return adjustUses(target.item, +1);
       if ( await openAssignDialog(actor, i) ) refresh();
     });
 

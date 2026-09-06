@@ -8,13 +8,27 @@
 
   "LANCER_RADIAL.Tooltip.Actions": "LMB to activate, RMB to reassign",
   "LANCER_RADIAL.Tooltip.Uses": "Shift+LMB and Shift+RMB step the counter down and up",
-  "LANCER_RADIAL.Tooltip.Empty": "Empty slot — click to assign an item",
+  "LANCER_RADIAL.Tooltip.Empty": "Empty slot — click to assign",
 
   "LANCER_RADIAL.Dialog.Title": "{actor}: slot #{slot}",
-  "LANCER_RADIAL.Dialog.Item": "Item",
+  "LANCER_RADIAL.Dialog.Target": "Slot contents",
+  "LANCER_RADIAL.Dialog.Builtins": "Basic actions",
+  "LANCER_RADIAL.Dialog.Items": "Items",
   "LANCER_RADIAL.Dialog.Color": "Slot colour",
   "LANCER_RADIAL.Dialog.Empty": "— empty —",
   "LANCER_RADIAL.Dialog.Save": "Save",
+
+  "LANCER_RADIAL.Builtin.ImprovisedAttack": "Improvised Attack",
+  "LANCER_RADIAL.Builtin.BasicAttack": "Basic Attack",
+  "LANCER_RADIAL.Builtin.TechAttack": "Tech Attack",
+  "LANCER_RADIAL.Builtin.Damage": "Damage Roll",
+  "LANCER_RADIAL.Builtin.Overcharge": "Overcharge",
+  "LANCER_RADIAL.Builtin.Stabilize": "Stabilize",
+  "LANCER_RADIAL.Builtin.Structure": "Structure Check",
+  "LANCER_RADIAL.Builtin.Overheat": "Overheat Check",
+  "LANCER_RADIAL.Builtin.Burn": "Burn",
+  "LANCER_RADIAL.Builtin.Scan": "Scan",
+  "LANCER_RADIAL.Builtin.FullRepair": "Full Repair",
 
   "LANCER_RADIAL.Color.Default": "Default",
   "LANCER_RADIAL.Color.Red": "Red",
@@ -27,5 +41,6 @@
   "LANCER_RADIAL.Error.SaveSlot": "Could not save the slot on \"{actor}\" — most likely a permissions problem.",
   "LANCER_RADIAL.Error.AdjustUses": "Could not change the counter on \"{item}\" — most likely a permissions problem.",
   "LANCER_RADIAL.Error.NoFlow": "\"{item}\" ({type}): no idea how to activate this item.",
+  "LANCER_RADIAL.Error.NoBuiltin": "Unknown basic action: {key}.",
   "LANCER_RADIAL.Error.Activate": "Failed to activate \"{item}\" — see the console (F12) for details."
 }
