@@ -1,6 +1,6 @@
 import {
   MODULE_ID, SLOT_COUNT, RADIUS, SAFE_PAD, HIDE_DELAY,
-  HUB_ANGLE, FAN_GAP, FAN_SPREAD, FAN_STEP, FAN_DELAY,
+  HUB_ANGLE, FAN_GAP, FAN_SPREAD, FAN_STEP, FAN_DELAY, CLICK_SLOP,
   colorHex, builtinsFor, activationIcon
 } from "./constants.js";
 import { setting } from "./settings.js";
@@ -14,6 +14,13 @@ const ELEMENT_ID = "lrl-hud";
 let hideTimer = null;
 let fanTimer = null;
 let currentToken = null;
+
+// Which token the cursor is over. Tracked from the hoverToken hook rather than
+// read off the layer, so the middle click has a target without guessing.
+let hoveredToken = null;
+
+// Where the middle button went down, to tell a click from a canvas pan.
+let midDownAt = null;
 
 // Safe-zone geometry. sceneTokenW/sceneOuter are scene units; geomCache holds
 // the same figures in screen px and therefore has to die whenever zoom changes.
@@ -127,6 +134,28 @@ function scheduleFanClose() {
 
 function refresh() {
   if ( currentToken ) renderSlots(currentToken);
+}
+
+/**
+ * Middle click on a token opens its radial, and closes it again if that token
+ * already owns one. Foundry pans the canvas on a middle drag, so only a press
+ * and release within CLICK_SLOP counts — otherwise every pan would pop a menu.
+ */
+function onAuxDown(ev) {
+  if ( ev.button !== 1 ) return;
+  midDownAt = { x: ev.clientX, y: ev.clientY };
+}
+
+function onAuxUp(ev) {
+  if ( ev.button !== 1 || !midDownAt ) return;
+  const travel = Math.hypot(ev.clientX - midDownAt.x, ev.clientY - midDownAt.y);
+  midDownAt = null;
+  if ( travel > CLICK_SLOP ) return;
+
+  const token = hoveredToken;
+  if ( !token || !shouldShow(token) ) return;
+  if ( currentToken && currentToken.id === token.id ) return hideOverlay();
+  showFor(token);
 }
 
 /* -------------------------------------------- */
@@ -395,12 +424,19 @@ export function activateOverlay() {
   ensureOverlay();
   document.addEventListener("pointermove", onPointerMove, { passive: true });
 
+  document.addEventListener("pointerdown", onAuxDown, { capture: true });
+  document.addEventListener("pointerup", onAuxUp, { capture: true });
+
+  // Hover no longer opens anything, it only remembers what the middle click
+  // would target. Leaving an open token still starts the hide countdown: the
+  // circles sit outside the token art, so the safe zone is what keeps it alive.
   Hooks.on("hoverToken", (token, hovered) => {
     if ( hovered ) {
-      if ( shouldShow(token) ) showFor(token);
-    } else if ( currentToken && token.id === currentToken.id ) {
-      scheduleHide();
+      hoveredToken = token;
+      return;
     }
+    if ( hoveredToken?.id === token.id ) hoveredToken = null;
+    if ( currentToken && token.id === currentToken.id ) scheduleHide();
   });
 
   Hooks.on("updateToken", (doc, change) => {
@@ -408,6 +444,7 @@ export function activateOverlay() {
   });
 
   Hooks.on("deleteToken", doc => {
+    if ( hoveredToken?.id === doc.id ) hoveredToken = null;
     if ( currentToken && doc.id === currentToken.id ) hideOverlay();
   });
 
@@ -418,6 +455,7 @@ export function activateOverlay() {
   });
 
   Hooks.on("canvasReady", () => {
+    hoveredToken = null;
     hideOverlay();
     ensureOverlay();
   });

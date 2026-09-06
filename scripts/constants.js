@@ -30,8 +30,15 @@ export const FAN_SPREAD = 190;
 /** Angle between neighbouring fan circles until the spread caps out. */
 export const FAN_STEP = 22;
 
-/** Grace period before the fan folds back once the cursor leaves it, in ms. */
-export const FAN_DELAY = 220;
+/**
+ * Grace period before the fan folds back once the cursor leaves it, in ms.
+ * Deliberately twice the radial's own: the fanned circles sit further out and
+ * are smaller, so reaching one takes longer and overshooting is easier.
+ */
+export const FAN_DELAY = 440;
+
+/** Pointer travel between press and release still counted as a click, in px. */
+export const CLICK_SLOP = 6;
 
 /** Actor types the radial is offered on. */
 export const ALLOWED_ACTOR_TYPES = ["mech", "npc", "pilot"];
