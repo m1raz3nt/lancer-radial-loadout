@@ -24,8 +24,11 @@ export const HUB_ANGLE = -90;
 /** How much further out than the ring the fanned-out actions land, in scene px. */
 export const FAN_GAP = 64;
 
-/** Arc the fan spans, centred on the hub, in degrees. */
+/** Widest arc a fan may span, centred on whatever opened it, in degrees. */
 export const FAN_SPREAD = 190;
+
+/** Angle between neighbouring fan circles until the spread caps out. */
+export const FAN_STEP = 22;
 
 /** Grace period before the fan folds back once the cursor leaves it, in ms. */
 export const FAN_DELAY = 220;
@@ -39,7 +42,8 @@ export const ASSIGNABLE_TYPES = [
   "mech_system",
   "npc_feature",
   "pilot_weapon",
-  "pilot_gear"
+  "pilot_gear",
+  "talent"
 ];
 
 export const DEFAULT_COLOR = "default";
@@ -85,4 +89,25 @@ export const BUILTIN_ACTIONS = {
 export function builtinsFor(actorType) {
   return Object.entries(BUILTIN_ACTIONS)
     .filter(([, def]) => !def.actors || def.actors.includes(actorType));
+}
+
+/**
+ * Glyphs per LANCER activation type, so a fanned-out item action shows at a
+ * glance what it costs. Black Thumb, for one, is a quick action at rank 1 and a
+ * protocol at rank 2.
+ */
+export const ACTIVATION_ICONS = {
+  "Quick": "fa-solid fa-forward",
+  "Full": "fa-solid fa-forward-fast",
+  "Quick Tech": "fa-solid fa-wifi",
+  "Full Tech": "fa-solid fa-tower-broadcast",
+  "Invade": "fa-solid fa-virus",
+  "Protocol": "fa-solid fa-terminal",
+  "Reaction": "fa-solid fa-reply",
+  "Free": "fa-solid fa-feather",
+  "Passive": "fa-solid fa-circle-half-stroke"
+};
+
+export function activationIcon(type) {
+  return ACTIVATION_ICONS[type] ?? "fa-solid fa-play";
 }

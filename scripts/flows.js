@@ -31,6 +31,11 @@ export async function activateItem(actor, item, actionPath = null) {
       return await item.beginSystemFlow();
     }
 
+    // Пассивный талант и всё прочее без флоу — карточкой в чат.
+    if ( typeof game.lancer?.beginItemChatFlow === "function" ) {
+      return await game.lancer.beginItemChatFlow(item, {});
+    }
+
     ui.notifications.warn(game.i18n.format("LANCER_RADIAL.Error.NoFlow", { item: item.name, type: t }));
   } catch ( err ) {
     console.error(`${MODULE_ID} | activateItem`, err, item);
@@ -70,5 +75,35 @@ export async function runBuiltin(actor, key) {
   } catch ( err ) {
     console.error(`${MODULE_ID} | runBuiltin`, err, key, actor);
     ui.notifications.error(game.i18n.format("LANCER_RADIAL.Error.Activate", { item: title }));
+  }
+}
+
+/** Actions an item exposes. Talents derive this from their unlocked ranks. */
+export function itemActions(item) {
+  const actions = item?.system?.actions;
+  return Array.isArray(actions) ? actions : [];
+}
+
+/** Weapons resolve to an attack roll, so their actions never drive the circle. */
+function isWeapon(item) {
+  return item?.type === "mech_weapon" || item?.type === "pilot_weapon";
+}
+
+/**
+ * Whether a slot should fan out instead of firing on click. More than one action
+ * means picking action zero would be a guess — Black Thumb at rank 2 offers both
+ * dismounting and remounting, and only the player knows which they meant.
+ */
+export function hasActionFan(item) {
+  return !isWeapon(item) && itemActions(item).length > 1;
+}
+
+/** Run one specific action of an item by its index in system.actions. */
+export async function runItemAction(item, index) {
+  try {
+    return await item.beginActivationFlow(`system.actions.${index}`);
+  } catch ( err ) {
+    console.error(`${MODULE_ID} | runItemAction`, err, item, index);
+    ui.notifications.error(game.i18n.format("LANCER_RADIAL.Error.Activate", { item: item.name }));
   }
 }

@@ -9,6 +9,9 @@
   "LANCER_RADIAL.Tooltip.Actions": "LMB to activate, RMB to reassign",
   "LANCER_RADIAL.Tooltip.Uses": "Shift+LMB and Shift+RMB step the counter down and up",
   "LANCER_RADIAL.Tooltip.Empty": "Empty slot — click to assign",
+  "LANCER_RADIAL.Tooltip.Fan": "Hover to fan out its actions",
+  "LANCER_RADIAL.Dialog.Items": "Items",
+  "LANCER_RADIAL.Dialog.PilotTalents": "Pilot talents ({pilot})",
   "LANCER_RADIAL.Tooltip.Hub": "Basic actions — hover to fan out",
 
   "LANCER_RADIAL.Dialog.Title": "{actor}: slot #{slot}",

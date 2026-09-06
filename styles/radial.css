@@ -116,15 +116,27 @@
   opacity: 0;
   pointer-events: none;
   animation: none; /* появление ведёт переход, а не общая анимация слотов */
-  transform: rotate(var(--angle)) translate(var(--radius, 96px)) rotate(calc(-1 * var(--angle))) scale(0.4);
+  /* Сложенный кружок сидит внутри своего владельца, откуда и «высыпается» */
+  transform: rotate(var(--home-angle, -90deg)) translate(var(--radius, 96px)) rotate(calc(-1 * var(--home-angle, -90deg))) scale(0.4);
   transition: transform 0.16s ease, opacity 0.16s ease, border-color 0.1s ease, box-shadow 0.1s ease;
   transition-delay: calc(var(--i, 0) * 0.012s);
 }
 
-.lrl-ring.fan-open .lrl-slot.lrl-fan {
+.lrl-slot.lrl-fan.open {
   opacity: 1;
   pointer-events: all;
   transform: rotate(var(--angle)) translate(var(--fan-radius, 160px)) rotate(calc(-1 * var(--angle)));
+}
+
+/* Пунктирный ободок — знак, что слот не срабатывает, а разворачивается */
+.lrl-slot.has-fan::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1px dashed var(--slot-color, #8ab4ff);
+  opacity: 0.65;
+  pointer-events: none;
 }
 
 .lrl-slot.lrl-fan:hover {

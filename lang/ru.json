@@ -9,6 +9,9 @@
   "LANCER_RADIAL.Tooltip.Actions": "ЛКМ — активировать, ПКМ — сменить",
   "LANCER_RADIAL.Tooltip.Uses": "Shift+ЛКМ и Shift+ПКМ — счётчик на единицу вниз и вверх",
   "LANCER_RADIAL.Tooltip.Empty": "Пустой слот — нажмите, чтобы назначить",
+  "LANCER_RADIAL.Tooltip.Fan": "Наведите — развернётся список действий",
+  "LANCER_RADIAL.Dialog.Items": "Предметы",
+  "LANCER_RADIAL.Dialog.PilotTalents": "Таланты пилота ({pilot})",
   "LANCER_RADIAL.Tooltip.Hub": "Базовые действия — наведите, чтобы развернуть",
 
   "LANCER_RADIAL.Dialog.Title": "{actor}: слот #{slot}",

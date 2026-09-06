@@ -1,5 +1,6 @@
 import { ASSIGNABLE_TYPES, SLOT_COLORS, DEFAULT_COLOR } from "./constants.js";
 import { readSlots, writeSlot, getUses } from "./slots.js";
+import { getPilot } from "./visibility.js";
 
 /**
  * Pick an item and a colour for one slot.
@@ -17,15 +18,33 @@ export async function openAssignDialog(actor, slotIndex) {
   const currentUuid = current?.uuid ?? "";
   const currentColor = current?.color ?? DEFAULT_COLOR;
 
-  const options = actor.items
+  const option = i => {
+    const u = getUses(i);
+    const uses = u ? ` [${u.value}/${u.max}]` : "";
+    const selected = i.uuid === currentUuid ? " selected" : "";
+    return `<option value="${i.uuid}"${selected}>${foundry.utils.escapeHTML(i.name)} — ${i.type}${uses}</option>`;
+  };
+
+  const listing = source => source.items
     .filter(i => ASSIGNABLE_TYPES.includes(i.type))
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map(i => {
-      const u = getUses(i);
-      const uses = u ? ` [${u.value}/${u.max}]` : "";
-      const selected = i.uuid === currentUuid ? " selected" : "";
-      return `<option value="${i.uuid}"${selected}>${foundry.utils.escapeHTML(i.name)} — ${i.type}${uses}</option>`;
-    }).join("");
+    .map(option)
+    .join("");
+
+  const own = listing(actor);
+
+  // Talents live on the pilot, not the mech, so a mech token would otherwise
+  // never see them. Only talents are borrowed — the pilot's own gear belongs on
+  // the pilot's own radial.
+  const pilot = getPilot(actor);
+  const talents = pilot
+    ? pilot.items.filter(i => i.type === "talent").sort((a, b) => a.name.localeCompare(b.name)).map(option).join("")
+    : "";
+
+  const groups = [];
+  if ( own ) groups.push(`<optgroup label="${game.i18n.localize("LANCER_RADIAL.Dialog.Items")}">${own}</optgroup>`);
+  if ( talents ) groups.push(`<optgroup label="${game.i18n.format("LANCER_RADIAL.Dialog.PilotTalents", { pilot: pilot.name })}">${talents}</optgroup>`);
+  const options = groups.join("");
 
   const swatches = Object.entries(SLOT_COLORS).map(([key, { label, hex }]) => {
     const checked = key === currentColor ? " checked" : "";

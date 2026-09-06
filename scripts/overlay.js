@@ -1,12 +1,12 @@
 import {
   MODULE_ID, SLOT_COUNT, RADIUS, SAFE_PAD, HIDE_DELAY,
-  HUB_ANGLE, FAN_GAP, FAN_SPREAD, FAN_DELAY,
-  colorHex, builtinsFor
+  HUB_ANGLE, FAN_GAP, FAN_SPREAD, FAN_STEP, FAN_DELAY,
+  colorHex, builtinsFor, activationIcon
 } from "./constants.js";
 import { setting } from "./settings.js";
 import { shouldShow } from "./visibility.js";
 import { readSlots, getUses, adjustUses, isDestroyed, warnNoPermission } from "./slots.js";
-import { activateItem, runBuiltin } from "./flows.js";
+import { activateItem, runBuiltin, itemActions, hasActionFan, runItemAction } from "./flows.js";
 import { openAssignDialog } from "./assign-dialog.js";
 
 const ELEMENT_ID = "lrl-hud";
@@ -86,28 +86,42 @@ function ringEl() {
   return overlayEl()?.querySelector(".lrl-ring");
 }
 
-function openFan() {
+/**
+ * Only one fan is ever unfolded, so the state is simply whose it is. Circles
+ * carry their owner in a data attribute rather than sitting in a wrapper: the
+ * transform maths stays flat that way, with no nested rotations to undo.
+ */
+function setFan(owner) {
+  const ring = ringEl();
+  if ( !ring ) return;
+  for ( const el of ring.querySelectorAll(".lrl-fan") ) {
+    el.classList.toggle("open", owner !== null && el.dataset.fan === owner);
+  }
+}
+
+function cancelFanTimer() {
   if ( fanTimer ) {
     clearTimeout(fanTimer);
     fanTimer = null;
   }
-  ringEl()?.classList.add("fan-open");
+}
+
+function openFan(owner) {
+  cancelFanTimer();
+  setFan(owner);
 }
 
 function closeFan() {
-  if ( fanTimer ) {
-    clearTimeout(fanTimer);
-    fanTimer = null;
-  }
-  ringEl()?.classList.remove("fan-open");
+  cancelFanTimer();
+  setFan(null);
 }
 
-/** Grace period so the cursor can cross the gap between hub and fanned circles. */
+/** Grace period so the cursor can cross the gap between owner and its circles. */
 function scheduleFanClose() {
   if ( fanTimer ) return;
   fanTimer = setTimeout(() => {
     fanTimer = null;
-    ringEl()?.classList.remove("fan-open");
+    setFan(null);
   }, FAN_DELAY);
 }
 
@@ -203,9 +217,9 @@ function positionOverlay(token) {
 /*  Slots                                       */
 /* -------------------------------------------- */
 
-function slotTooltip(name, uses) {
+function slotTooltip(name, uses, fan) {
   const head = uses ? `${name}  [${uses.value}/${uses.max}]` : name;
-  const lines = [head, game.i18n.localize("LANCER_RADIAL.Tooltip.Actions")];
+  const lines = [head, game.i18n.localize(fan ? "LANCER_RADIAL.Tooltip.Fan" : "LANCER_RADIAL.Tooltip.Actions")];
   if ( uses ) lines.push(game.i18n.localize("LANCER_RADIAL.Tooltip.Uses"));
   return lines.join("\n");
 }
@@ -237,15 +251,18 @@ function renderSlots(token) {
     const angle = HUB_ANGLE + step / 2 + step * i;
     const item = resolveItem(entry);
     const uses = item && showUses ? getUses(item) : null;
+    // A multi-action item unfolds instead of firing: picking action zero for the
+    // player would be a guess.
+    const fanOwner = item && hasActionFan(item) ? `slot-${i}` : null;
 
     const btn = document.createElement("div");
-    btn.className = `lrl-slot ${item ? "item" : "empty"}`;
+    btn.className = `lrl-slot ${item ? "item" : "empty"}${fanOwner ? " has-fan" : ""}`;
     btn.style.setProperty("--angle", `${angle}deg`);
     btn.style.setProperty("--i", i);
 
     if ( item ) {
       btn.style.setProperty("--slot-color", colorHex(entry.color));
-      btn.title = slotTooltip(item.name, uses);
+      btn.title = slotTooltip(item.name, uses, fanOwner);
       btn.style.backgroundImage = `url("${encodeURI(item.img ?? "")}")`;
       if ( isDestroyed(item) ) btn.classList.add("destroyed");
       if ( uses && uses.value <= 0 ) btn.classList.add("depleted");
@@ -260,6 +277,9 @@ function renderSlots(token) {
       btn.textContent = "+";
     }
 
+    btn.addEventListener("pointerenter", () => (fanOwner ? openFan(fanOwner) : scheduleFanClose()));
+    btn.addEventListener("pointerleave", scheduleFanClose);
+
     btn.addEventListener("click", async ev => {
       ev.preventDefault();
       ev.stopPropagation();
@@ -272,6 +292,7 @@ function renderSlots(token) {
         if ( !canEdit ) return warnNoPermission(actor);
         return adjustUses(item, -1);
       }
+      if ( fanOwner ) return openFan(fanOwner);
       activateItem(actor, item);
     });
 
@@ -284,6 +305,14 @@ function renderSlots(token) {
     });
 
     ring.appendChild(btn);
+
+    if ( fanOwner ) {
+      renderFan(ring, fanOwner, angle, itemActions(item).map((action, k) => ({
+        title: action.name || item.name,
+        icon: activationIcon(action.activation),
+        run: () => runItemAction(item, k)
+      })));
+    }
   });
 
   renderHub(ring, actor);
@@ -293,6 +322,37 @@ function iconEl(cls) {
   const icon = document.createElement("i");
   icon.className = cls;
   return icon;
+}
+
+/**
+ * Lay a set of circles out on an arc around whatever opened them. The spread
+ * grows with the count until it caps at FAN_SPREAD, so a two-action talent gets
+ * a tight pair rather than the same sprawl as the eleven-strong hub.
+ */
+function renderFan(ring, owner, homeAngle, entries) {
+  const count = entries.length;
+  const spread = count > 1 ? Math.min(FAN_SPREAD, (count - 1) * FAN_STEP) : 0;
+  const start = homeAngle - spread / 2;
+  const gap = count > 1 ? spread / (count - 1) : 0;
+
+  entries.forEach((entry, k) => {
+    const btn = document.createElement("div");
+    btn.className = "lrl-slot lrl-fan";
+    btn.dataset.fan = owner;
+    btn.style.setProperty("--angle", `${count > 1 ? start + gap * k : homeAngle}deg`);
+    btn.style.setProperty("--home-angle", `${homeAngle}deg`);
+    btn.style.setProperty("--i", k);
+    btn.title = entry.title;
+    btn.appendChild(iconEl(entry.icon));
+    btn.addEventListener("pointerenter", () => openFan(owner));
+    btn.addEventListener("pointerleave", scheduleFanClose);
+    btn.addEventListener("click", ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      entry.run();
+    });
+    ring.appendChild(btn);
+  });
 }
 
 /**
@@ -310,36 +370,21 @@ function renderHub(ring, actor) {
   hub.style.setProperty("--angle", `${HUB_ANGLE}deg`);
   hub.title = game.i18n.localize("LANCER_RADIAL.Tooltip.Hub");
   hub.appendChild(iconEl("fa-solid fa-bolt-lightning"));
-  hub.addEventListener("pointerenter", openFan);
+  hub.addEventListener("pointerenter", () => openFan("hub"));
   hub.addEventListener("pointerleave", scheduleFanClose);
   // Click opens it too, so the hub also works where hover does not.
   hub.addEventListener("click", ev => {
     ev.preventDefault();
     ev.stopPropagation();
-    openFan();
+    openFan("hub");
   });
   ring.appendChild(hub);
 
-  const count = actions.length;
-  const start = HUB_ANGLE - FAN_SPREAD / 2;
-  const gap = count > 1 ? FAN_SPREAD / (count - 1) : 0;
-
-  actions.forEach(([key, def], k) => {
-    const btn = document.createElement("div");
-    btn.className = "lrl-slot lrl-fan";
-    btn.style.setProperty("--angle", `${count > 1 ? start + gap * k : HUB_ANGLE}deg`);
-    btn.style.setProperty("--i", k);
-    btn.title = game.i18n.localize(def.label);
-    btn.appendChild(iconEl(def.icon));
-    btn.addEventListener("pointerenter", openFan);
-    btn.addEventListener("pointerleave", scheduleFanClose);
-    btn.addEventListener("click", ev => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      runBuiltin(actor, key);
-    });
-    ring.appendChild(btn);
-  });
+  renderFan(ring, "hub", HUB_ANGLE, actions.map(([key, def]) => ({
+    title: game.i18n.localize(def.label),
+    icon: def.icon,
+    run: () => runBuiltin(actor, key)
+  })));
 }
 
 /* -------------------------------------------- */
