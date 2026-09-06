@@ -12,9 +12,7 @@
   "LANCER_RADIAL.Tooltip.Hub": "Базовые действия — наведите, чтобы развернуть",
 
   "LANCER_RADIAL.Dialog.Title": "{actor}: слот #{slot}",
-  "LANCER_RADIAL.Dialog.Target": "Что в слоте",
-  "LANCER_RADIAL.Dialog.Builtins": "Базовые действия",
-  "LANCER_RADIAL.Dialog.Items": "Предметы",
+  "LANCER_RADIAL.Dialog.Item": "Что в слоте",
   "LANCER_RADIAL.Dialog.Color": "Цвет слота",
   "LANCER_RADIAL.Dialog.Empty": "— пусто —",
   "LANCER_RADIAL.Dialog.Save": "Сохранить",

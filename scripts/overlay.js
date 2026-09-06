@@ -1,7 +1,7 @@
 import {
   MODULE_ID, SLOT_COUNT, RADIUS, SAFE_PAD, HIDE_DELAY,
   HUB_ANGLE, FAN_GAP, FAN_SPREAD, FAN_DELAY,
-  colorHex, BUILTIN_ACTIONS, builtinsFor
+  colorHex, builtinsFor
 } from "./constants.js";
 import { setting } from "./settings.js";
 import { shouldShow } from "./visibility.js";
@@ -211,20 +211,11 @@ function slotTooltip(name, uses) {
 }
 
 /**
- * Turn a stored slot into what the circle needs to draw and do: a resolved item,
- * or one of the actor-level actions. Null means empty — including a uuid that no
+ * Resolve a stored slot to its item. Null means empty — including a uuid that no
  * longer resolves, so a deleted item quietly frees its slot instead of breaking.
  */
-function resolveSlot(entry) {
-  if ( !entry ) return null;
-  if ( entry.builtin ) {
-    const def = BUILTIN_ACTIONS[entry.builtin];
-    if ( !def ) return null;
-    return { kind: "builtin", key: entry.builtin, name: game.i18n.localize(def.label), icon: def.icon };
-  }
-  const item = entry.uuid ? fromUuidSync(entry.uuid) : null;
-  if ( !item ) return null;
-  return { kind: "item", item, name: item.name };
+function resolveItem(entry) {
+  return entry?.uuid ? fromUuidSync(entry.uuid) : null;
 }
 
 function renderSlots(token) {
@@ -244,31 +235,25 @@ function renderSlots(token) {
 
   slots.forEach((entry, i) => {
     const angle = HUB_ANGLE + step / 2 + step * i;
-    const target = resolveSlot(entry);
-    const uses = target?.item && showUses ? getUses(target.item) : null;
+    const item = resolveItem(entry);
+    const uses = item && showUses ? getUses(item) : null;
 
     const btn = document.createElement("div");
-    btn.className = `lrl-slot ${target ? target.kind : "empty"}`;
+    btn.className = `lrl-slot ${item ? "item" : "empty"}`;
     btn.style.setProperty("--angle", `${angle}deg`);
     btn.style.setProperty("--i", i);
 
-    if ( target ) {
+    if ( item ) {
       btn.style.setProperty("--slot-color", colorHex(entry.color));
-      btn.title = slotTooltip(target.name, uses);
-
-      if ( target.kind === "item" ) {
-        btn.style.backgroundImage = `url("${encodeURI(target.item.img ?? "")}")`;
-        if ( isDestroyed(target.item) ) btn.classList.add("destroyed");
-        if ( uses && uses.value <= 0 ) btn.classList.add("depleted");
-        if ( uses ) {
-          const badge = document.createElement("span");
-          badge.className = "lrl-badge";
-          badge.textContent = `${uses.value}/${uses.max}`;
-          btn.appendChild(badge);
-        }
-      } else {
-        // Built-ins have no artwork, so the circle carries a glyph instead.
-        btn.appendChild(iconEl(target.icon));
+      btn.title = slotTooltip(item.name, uses);
+      btn.style.backgroundImage = `url("${encodeURI(item.img ?? "")}")`;
+      if ( isDestroyed(item) ) btn.classList.add("destroyed");
+      if ( uses && uses.value <= 0 ) btn.classList.add("depleted");
+      if ( uses ) {
+        const badge = document.createElement("span");
+        badge.className = "lrl-badge";
+        badge.textContent = `${uses.value}/${uses.max}`;
+        btn.appendChild(badge);
       }
     } else {
       btn.title = game.i18n.localize("LANCER_RADIAL.Tooltip.Empty");
@@ -278,24 +263,23 @@ function renderSlots(token) {
     btn.addEventListener("click", async ev => {
       ev.preventDefault();
       ev.stopPropagation();
-      if ( !target ) {
+      if ( !item ) {
         if ( !canEdit ) return warnNoPermission(actor);
         if ( await openAssignDialog(actor, i) ) refresh();
         return;
       }
       if ( ev.shiftKey && uses ) {
         if ( !canEdit ) return warnNoPermission(actor);
-        return adjustUses(target.item, -1);
+        return adjustUses(item, -1);
       }
-      if ( target.kind === "builtin" ) return runBuiltin(actor, target.key);
-      activateItem(actor, target.item);
+      activateItem(actor, item);
     });
 
     btn.addEventListener("contextmenu", async ev => {
       ev.preventDefault();
       ev.stopPropagation();
       if ( !canEdit ) return warnNoPermission(actor);
-      if ( uses && ev.shiftKey ) return adjustUses(target.item, +1);
+      if ( uses && ev.shiftKey ) return adjustUses(item, +1);
       if ( await openAssignDialog(actor, i) ) refresh();
     });
 

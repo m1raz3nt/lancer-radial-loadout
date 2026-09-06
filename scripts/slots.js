@@ -1,19 +1,20 @@
-import { MODULE_ID, SLOT_COUNT, SLOT_COLORS, DEFAULT_COLOR, BUILTIN_ACTIONS } from "./constants.js";
+import { MODULE_ID, SLOT_COUNT, SLOT_COLORS, DEFAULT_COLOR } from "./constants.js";
 
 /**
- * Normalise a stored slot. A slot holds either an item ({ uuid }) or one of the
- * actor-level LANCER actions ({ builtin }), plus its colour. A bare string is
- * the original pre-colour format, so old loadouts survive without a migration.
+ * Normalise a stored slot to { uuid, color }. A bare string is the original
+ * pre-colour format, so old loadouts survive without a migration.
+ *
+ * Entries pinning a basic action are dropped: those moved to the hub, and a slot
+ * holding one would render but no longer be selectable in the dialog.
  */
 export function normSlot(entry) {
   if ( !entry ) return null;
   if ( typeof entry === "string" ) return { uuid: entry, color: DEFAULT_COLOR };
-  if ( typeof entry !== "object" ) return null;
-
-  const color = entry.color in SLOT_COLORS ? entry.color : DEFAULT_COLOR;
-  if ( entry.builtin && entry.builtin in BUILTIN_ACTIONS ) return { builtin: entry.builtin, color };
-  if ( entry.uuid ) return { uuid: entry.uuid, color };
-  return null;
+  if ( typeof entry !== "object" || !entry.uuid ) return null;
+  return {
+    uuid: entry.uuid,
+    color: entry.color in SLOT_COLORS ? entry.color : DEFAULT_COLOR
+  };
 }
 
 export function readSlots(actor) {

@@ -75,14 +75,6 @@
   color: transparent; /* прячем "+" под картинкой предмета */
 }
 
-/* Встроенные действия рисуются глифом: у них нет картинки предмета */
-.lrl-slot.builtin {
-  color: var(--slot-color, #8ab4ff);
-  font-size: 19px;
-}
-.lrl-slot.builtin i {
-  pointer-events: none;
-}
 .lrl-slot:hover {
   border-color: #fff;
   box-shadow: 0 0 10px var(--slot-color, #8ab4ff);

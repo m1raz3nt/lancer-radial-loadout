@@ -12,9 +12,7 @@
   "LANCER_RADIAL.Tooltip.Hub": "Basic actions — hover to fan out",
 
   "LANCER_RADIAL.Dialog.Title": "{actor}: slot #{slot}",
-  "LANCER_RADIAL.Dialog.Target": "Slot contents",
-  "LANCER_RADIAL.Dialog.Builtins": "Basic actions",
-  "LANCER_RADIAL.Dialog.Items": "Items",
+  "LANCER_RADIAL.Dialog.Item": "Slot contents",
   "LANCER_RADIAL.Dialog.Color": "Slot colour",
   "LANCER_RADIAL.Dialog.Empty": "— empty —",
   "LANCER_RADIAL.Dialog.Save": "Save",
