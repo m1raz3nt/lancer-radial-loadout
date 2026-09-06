@@ -97,6 +97,49 @@
   filter: grayscale(0.5) brightness(0.75);
 }
 
+/* --------------------------------------------- */
+/*  Хаб базовых действий и его веер              */
+/* --------------------------------------------- */
+
+/* Хаб стоит в разрыве кольца сверху и заметно отличается от обычных слотов */
+.lrl-slot.lrl-hub {
+  border-color: #ffd479;
+  color: #ffd479;
+  background-color: rgba(24, 18, 8, 0.85);
+  font-size: 18px;
+}
+.lrl-slot.lrl-hub:hover {
+  border-color: #fff;
+  box-shadow: 0 0 12px #ffd479;
+}
+
+/* Пока веер сложен, действия сидят в самом хабе и не ловят курсор */
+.lrl-slot.lrl-fan {
+  width: 38px;
+  height: 38px;
+  margin: -19px;
+  font-size: 15px;
+  color: #ffe6b0;
+  border-color: #c9a35a;
+  opacity: 0;
+  pointer-events: none;
+  animation: none; /* появление ведёт переход, а не общая анимация слотов */
+  transform: rotate(var(--angle)) translate(var(--radius, 96px)) rotate(calc(-1 * var(--angle))) scale(0.4);
+  transition: transform 0.16s ease, opacity 0.16s ease, border-color 0.1s ease, box-shadow 0.1s ease;
+  transition-delay: calc(var(--i, 0) * 0.012s);
+}
+
+.lrl-ring.fan-open .lrl-slot.lrl-fan {
+  opacity: 1;
+  pointer-events: all;
+  transform: rotate(var(--angle)) translate(var(--fan-radius, 160px)) rotate(calc(-1 * var(--angle)));
+}
+
+.lrl-slot.lrl-fan:hover {
+  border-color: #fff;
+  box-shadow: 0 0 10px #ffd479;
+}
+
 /* Бейдж «текущее/максимум» использований */
 .lrl-badge {
   position: absolute;

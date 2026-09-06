@@ -23,8 +23,15 @@ export function readSlots(actor) {
   return arr;
 }
 
+/**
+ * Writes against the raw flag rather than the padded read, so entries past
+ * SLOT_COUNT survive. Dropping the ring from eight circles to six would
+ * otherwise quietly delete whatever sat in the last two.
+ */
 export async function writeSlot(actor, index, entry) {
-  const slots = readSlots(actor);
+  const raw = actor.getFlag(MODULE_ID, "slots");
+  const slots = Array.isArray(raw) ? raw.slice() : [];
+  while ( slots.length <= index ) slots.push(null);
   slots[index] = normSlot(entry);
   try {
     await actor.setFlag(MODULE_ID, "slots", slots);

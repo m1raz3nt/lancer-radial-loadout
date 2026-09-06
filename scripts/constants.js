@@ -1,7 +1,10 @@
 export const MODULE_ID = "lancer-radial-loadout";
 
-/** How many circles sit around the token. */
-export const SLOT_COUNT = 8;
+/**
+ * How many assignable circles sit around the token. They are offset by half a
+ * step so the top of the ring stays clear for the action hub.
+ */
+export const SLOT_COUNT = 6;
 
 /**
  * Minimum layout radius in scene px. The real radius grows with the token:
@@ -14,6 +17,18 @@ export const SAFE_PAD = 52;
 
 /** Grace period before the radial hides once the cursor leaves, in ms. */
 export const HIDE_DELAY = 180;
+
+/** Where the hub sits: straight up, in the gap the slot offset leaves open. */
+export const HUB_ANGLE = -90;
+
+/** How much further out than the ring the fanned-out actions land, in scene px. */
+export const FAN_GAP = 64;
+
+/** Arc the fan spans, centred on the hub, in degrees. */
+export const FAN_SPREAD = 190;
+
+/** Grace period before the fan folds back once the cursor leaves it, in ms. */
+export const FAN_DELAY = 220;
 
 /** Actor types the radial is offered on. */
 export const ALLOWED_ACTOR_TYPES = ["mech", "npc", "pilot"];

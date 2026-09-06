@@ -1,4 +1,8 @@
-import { MODULE_ID, SLOT_COUNT, RADIUS, SAFE_PAD, HIDE_DELAY, colorHex, BUILTIN_ACTIONS } from "./constants.js";
+import {
+  MODULE_ID, SLOT_COUNT, RADIUS, SAFE_PAD, HIDE_DELAY,
+  HUB_ANGLE, FAN_GAP, FAN_SPREAD, FAN_DELAY,
+  colorHex, BUILTIN_ACTIONS, builtinsFor
+} from "./constants.js";
 import { setting } from "./settings.js";
 import { shouldShow } from "./visibility.js";
 import { readSlots, getUses, adjustUses, isDestroyed, warnNoPermission } from "./slots.js";
@@ -8,6 +12,7 @@ import { openAssignDialog } from "./assign-dialog.js";
 const ELEMENT_ID = "lrl-hud";
 
 let hideTimer = null;
+let fanTimer = null;
 let currentToken = null;
 
 // Safe-zone geometry. sceneTokenW/sceneOuter are scene units; geomCache holds
@@ -62,6 +67,7 @@ function scheduleHide() {
 
 function hideOverlay() {
   cancelHide();
+  closeFan();
   overlayEl()?.classList.remove("active");
   currentToken = null;
   geomCache = null;
@@ -74,6 +80,35 @@ function showFor(token) {
   renderSlots(token);
   el.classList.add("active");
   cancelHide();
+}
+
+function ringEl() {
+  return overlayEl()?.querySelector(".lrl-ring");
+}
+
+function openFan() {
+  if ( fanTimer ) {
+    clearTimeout(fanTimer);
+    fanTimer = null;
+  }
+  ringEl()?.classList.add("fan-open");
+}
+
+function closeFan() {
+  if ( fanTimer ) {
+    clearTimeout(fanTimer);
+    fanTimer = null;
+  }
+  ringEl()?.classList.remove("fan-open");
+}
+
+/** Grace period so the cursor can cross the gap between hub and fanned circles. */
+function scheduleFanClose() {
+  if ( fanTimer ) return;
+  fanTimer = setTimeout(() => {
+    fanTimer = null;
+    ringEl()?.classList.remove("fan-open");
+  }, FAN_DELAY);
 }
 
 function refresh() {
@@ -137,14 +172,19 @@ function positionOverlay(token) {
   // collapsing the safe zone entirely.
   const half = Math.max(w, h) / 2;
   const radius = Math.max(RADIUS, Math.round(half + 40));
+  const fanRadius = radius + FAN_GAP;
   const inner = Math.round(half + 4);
-  const outer = radius + SAFE_PAD;
+  // The zone always reaches past the fan, open or not: crossing out to a fanned
+  // circle must never take the cursor out of the region that keeps things alive.
+  const outer = fanRadius + SAFE_PAD;
 
   sceneTokenW = w;
   sceneOuter = outer;
   geomCache = null;
 
-  el.querySelector(".lrl-ring")?.style.setProperty("--radius", `${radius}px`);
+  const ring = el.querySelector(".lrl-ring");
+  ring?.style.setProperty("--radius", `${radius}px`);
+  ring?.style.setProperty("--fan-radius", `${fanRadius}px`);
 
   const c = outer;
   const sz = el.querySelector(".lrl-safezone");
@@ -199,8 +239,11 @@ function renderSlots(token) {
   // targets the mech actor itself.
   const canEdit = actor.isOwner;
 
+  // Half a step of offset leaves the top of the ring free for the hub.
+  const step = 360 / SLOT_COUNT;
+
   slots.forEach((entry, i) => {
-    const angle = (360 / SLOT_COUNT) * i - 90;
+    const angle = HUB_ANGLE + step / 2 + step * i;
     const target = resolveSlot(entry);
     const uses = target?.item && showUses ? getUses(target.item) : null;
 
@@ -225,9 +268,7 @@ function renderSlots(token) {
         }
       } else {
         // Built-ins have no artwork, so the circle carries a glyph instead.
-        const icon = document.createElement("i");
-        icon.className = target.icon;
-        btn.appendChild(icon);
+        btn.appendChild(iconEl(target.icon));
       }
     } else {
       btn.title = game.i18n.localize("LANCER_RADIAL.Tooltip.Empty");
@@ -258,6 +299,61 @@ function renderSlots(token) {
       if ( await openAssignDialog(actor, i) ) refresh();
     });
 
+    ring.appendChild(btn);
+  });
+
+  renderHub(ring, actor);
+}
+
+function iconEl(cls) {
+  const icon = document.createElement("i");
+  icon.className = cls;
+  return icon;
+}
+
+/**
+ * The hub occupies the gap at the top and spills the built-in actions out on
+ * hover. These are wired in place rather than assignable — the point is that
+ * they are always the same actions in the same spots, one hover away, without
+ * spending any of the six slots.
+ */
+function renderHub(ring, actor) {
+  const actions = builtinsFor(actor.type);
+  if ( !actions.length ) return;
+
+  const hub = document.createElement("div");
+  hub.className = "lrl-slot lrl-hub";
+  hub.style.setProperty("--angle", `${HUB_ANGLE}deg`);
+  hub.title = game.i18n.localize("LANCER_RADIAL.Tooltip.Hub");
+  hub.appendChild(iconEl("fa-solid fa-bolt-lightning"));
+  hub.addEventListener("pointerenter", openFan);
+  hub.addEventListener("pointerleave", scheduleFanClose);
+  // Click opens it too, so the hub also works where hover does not.
+  hub.addEventListener("click", ev => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    openFan();
+  });
+  ring.appendChild(hub);
+
+  const count = actions.length;
+  const start = HUB_ANGLE - FAN_SPREAD / 2;
+  const gap = count > 1 ? FAN_SPREAD / (count - 1) : 0;
+
+  actions.forEach(([key, def], k) => {
+    const btn = document.createElement("div");
+    btn.className = "lrl-slot lrl-fan";
+    btn.style.setProperty("--angle", `${count > 1 ? start + gap * k : HUB_ANGLE}deg`);
+    btn.style.setProperty("--i", k);
+    btn.title = game.i18n.localize(def.label);
+    btn.appendChild(iconEl(def.icon));
+    btn.addEventListener("pointerenter", openFan);
+    btn.addEventListener("pointerleave", scheduleFanClose);
+    btn.addEventListener("click", ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      runBuiltin(actor, key);
+    });
     ring.appendChild(btn);
   });
 }
