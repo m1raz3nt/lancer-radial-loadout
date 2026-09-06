@@ -1,0 +1,31 @@
+{
+  "LANCER_RADIAL.Settings.GmSeesAll.Name": "GM видит кружки на всех актёрах",
+  "LANCER_RADIAL.Settings.GmSeesAll.Hint": "Выключено: GM видит слоты только на токенах, которыми управляет игрок — напрямую или через связанного пилота. Включено: на всех мехах, NPC и пилотах.",
+  "LANCER_RADIAL.Settings.ShowUses.Name": "Показывать счётчик расходов",
+  "LANCER_RADIAL.Settings.ShowUses.Hint": "Бейдж «текущее/максимум» на кружке для предметов с тегом Limited.",
+  "LANCER_RADIAL.Settings.ShowSafeZone.Name": "Подсвечивать безопасную зону",
+  "LANCER_RADIAL.Settings.ShowSafeZone.Hint": "Едва заметное кольцо вокруг токена, внутри которого кружки не пропадают. Пригодится, если захотите подобрать радиус под свой стол.",
+
+  "LANCER_RADIAL.Tooltip.Actions": "ЛКМ — активировать, ПКМ — сменить",
+  "LANCER_RADIAL.Tooltip.Uses": "Shift+ЛКМ и Shift+ПКМ — счётчик на единицу вниз и вверх",
+  "LANCER_RADIAL.Tooltip.Empty": "Пустой слот — нажмите, чтобы назначить предмет",
+
+  "LANCER_RADIAL.Dialog.Title": "{actor}: слот #{slot}",
+  "LANCER_RADIAL.Dialog.Item": "Предмет",
+  "LANCER_RADIAL.Dialog.Color": "Цвет слота",
+  "LANCER_RADIAL.Dialog.Empty": "— пусто —",
+  "LANCER_RADIAL.Dialog.Save": "Сохранить",
+
+  "LANCER_RADIAL.Color.Default": "Стандартный",
+  "LANCER_RADIAL.Color.Red": "Красный",
+  "LANCER_RADIAL.Color.Green": "Зелёный",
+  "LANCER_RADIAL.Color.Blue": "Синий",
+  "LANCER_RADIAL.Color.Pink": "Розовый",
+  "LANCER_RADIAL.Color.Gray": "Серый",
+
+  "LANCER_RADIAL.Error.NoPermission": "Нет прав на изменение «{actor}». Нужен Owner на самом актёре, а не только на связанном пилоте.",
+  "LANCER_RADIAL.Error.SaveSlot": "Не удалось сохранить слот на «{actor}» — скорее всего не хватает прав.",
+  "LANCER_RADIAL.Error.AdjustUses": "Не удалось изменить счётчик «{item}» — скорее всего не хватает прав.",
+  "LANCER_RADIAL.Error.NoFlow": "«{item}» ({type}): не знаю, как активировать этот предмет.",
+  "LANCER_RADIAL.Error.Activate": "Ошибка активации «{item}» — подробности в консоли (F12)."
+}

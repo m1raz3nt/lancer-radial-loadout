@@ -1,0 +1,31 @@
+{
+  "LANCER_RADIAL.Settings.GmSeesAll.Name": "GM sees circles on every actor",
+  "LANCER_RADIAL.Settings.GmSeesAll.Hint": "Off: the GM only sees slots on tokens a player drives, directly or through the linked pilot. On: every mech, NPC and pilot.",
+  "LANCER_RADIAL.Settings.ShowUses.Name": "Show the uses counter",
+  "LANCER_RADIAL.Settings.ShowUses.Hint": "A current/maximum badge on the circle for items carrying the Limited tag.",
+  "LANCER_RADIAL.Settings.ShowSafeZone.Name": "Highlight the safe zone",
+  "LANCER_RADIAL.Settings.ShowSafeZone.Hint": "A faint ring around the token inside which the circles stay put. Handy when tuning the radius for your table.",
+
+  "LANCER_RADIAL.Tooltip.Actions": "LMB to activate, RMB to reassign",
+  "LANCER_RADIAL.Tooltip.Uses": "Shift+LMB and Shift+RMB step the counter down and up",
+  "LANCER_RADIAL.Tooltip.Empty": "Empty slot — click to assign an item",
+
+  "LANCER_RADIAL.Dialog.Title": "{actor}: slot #{slot}",
+  "LANCER_RADIAL.Dialog.Item": "Item",
+  "LANCER_RADIAL.Dialog.Color": "Slot colour",
+  "LANCER_RADIAL.Dialog.Empty": "— empty —",
+  "LANCER_RADIAL.Dialog.Save": "Save",
+
+  "LANCER_RADIAL.Color.Default": "Default",
+  "LANCER_RADIAL.Color.Red": "Red",
+  "LANCER_RADIAL.Color.Green": "Green",
+  "LANCER_RADIAL.Color.Blue": "Blue",
+  "LANCER_RADIAL.Color.Pink": "Pink",
+  "LANCER_RADIAL.Color.Gray": "Grey",
+
+  "LANCER_RADIAL.Error.NoPermission": "No permission to modify \"{actor}\". Owner on the actor itself is required, not just on the linked pilot.",
+  "LANCER_RADIAL.Error.SaveSlot": "Could not save the slot on \"{actor}\" — most likely a permissions problem.",
+  "LANCER_RADIAL.Error.AdjustUses": "Could not change the counter on \"{item}\" — most likely a permissions problem.",
+  "LANCER_RADIAL.Error.NoFlow": "\"{item}\" ({type}): no idea how to activate this item.",
+  "LANCER_RADIAL.Error.Activate": "Failed to activate \"{item}\" — see the console (F12) for details."
+}
